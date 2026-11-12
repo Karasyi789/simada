@@ -12,6 +12,7 @@ class QueueCard extends StatelessWidget {
   final VoidCallback? onTap;
   final Widget? trailingAction;
   final bool showStudentInfo;
+  final bool isLocked;
 
   const QueueCard({
     super.key,
@@ -21,11 +22,25 @@ class QueueCard extends StatelessWidget {
     this.onTap,
     this.trailingAction,
     this.showStudentInfo = true,
+    this.isLocked = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final bool isHighlighted = document.isSedangDiperiksa;
+    final bool isHighlighted = document.isSedangDiperiksa && !isLocked;
+
+    Color bgColor = Colors.white;
+    Color borderColor = AppColors.border;
+    double borderWidth = 1.0;
+
+    if (isLocked) {
+      bgColor = const Color(0xFFF8FAFC);
+      borderColor = const Color(0xFFCBD5E1);
+    } else if (isHighlighted) {
+      bgColor = const Color(0xFFEFF6FF);
+      borderColor = AppColors.primaryLight;
+      borderWidth = 1.6;
+    }
 
     return InkWell(
       onTap: onTap,
@@ -33,15 +48,15 @@ class QueueCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isHighlighted ? const Color(0xFFEFF6FF) : Colors.white,
+          color: bgColor,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isHighlighted ? AppColors.primaryLight : AppColors.border,
-            width: isHighlighted ? 1.6 : 1,
+            color: borderColor,
+            width: borderWidth,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.02),
+              color: Colors.black.withOpacity(isLocked ? 0.01 : 0.02),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -50,14 +65,14 @@ class QueueCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top Row: Category tag + FIFO Position + Status Badge
+            // Top Row: Category tag + FIFO Position + Status Badge / Lock Badge
             Row(
               children: [
                 if (queuePosition != null) ...[
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: AppColors.primary,
+                      color: isLocked ? const Color(0xFF64748B) : AppColors.primary,
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
@@ -80,15 +95,40 @@ class QueueCard extends StatelessWidget {
                   ),
                   child: Text(
                     document.kategori,
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
+                    style: TextStyle(
+                      color: isLocked ? const Color(0xFF94A3B8) : AppColors.textSecondary,
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
                 const Spacer(),
-                StatusBadge(status: document.status),
+                if (isLocked)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFF94A3B8)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(Icons.lock_rounded, size: 12, color: Color(0xFF475569)),
+                        SizedBox(width: 4),
+                        Text(
+                          'Terkunci (FIFO)',
+                          style: TextStyle(
+                            color: Color(0xFF475569),
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  StatusBadge(status: document.status),
               ],
             ),
             const SizedBox(height: 10),
@@ -166,7 +206,33 @@ class QueueCard extends StatelessWidget {
               ],
             ),
 
-            if (trailingAction != null) ...[
+            if (isLocked) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: const [
+                    Icon(Icons.info_outline, size: 13, color: Color(0xFF64748B)),
+                    SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Menunggu giliran antrean FIFO (dokumen di atasnya wajib disetujui/direvisi dahulu)',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Color(0xFF64748B),
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ] else if (trailingAction != null) ...[
               const SizedBox(height: 12),
               const Divider(height: 1),
               const SizedBox(height: 8),

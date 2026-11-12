@@ -39,6 +39,18 @@ class _PemeriksaanDokumenScreenState extends State<PemeriksaanDokumenScreen> {
   }
 
   void _addAnnotationFromViewer(int pageNumber, String note) {
+    if (!_repo.canValidateDocument(widget.dokumenId)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Dokumen terkunci! Selesaikan dokumen urutan sebelumnya terlebih dahulu.',
+          ),
+          backgroundColor: AppColors.statusMenunggu,
+        ),
+      );
+      return;
+    }
+
     _repo.updateDocumentStatus(
       dokumenId: widget.dokumenId,
       newStatus: AppConstants.statusRevisi,
@@ -48,6 +60,18 @@ class _PemeriksaanDokumenScreenState extends State<PemeriksaanDokumenScreen> {
   }
 
   void _showChangeStatusDialog(DocumentModel doc) {
+    if (!_repo.canValidateDocument(doc.dokumenId)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Antrean Terkunci (FIFO): Dokumen ini belum dapat divalidasi karena dokumen urutan sebelumnya belum selesai disetujui atau direvisi.',
+          ),
+          backgroundColor: AppColors.statusMenunggu,
+        ),
+      );
+      return;
+    }
+
     String selectedStatus = doc.status;
     final noteController = TextEditingController();
     final pageController = TextEditingController();
@@ -189,17 +213,20 @@ class _PemeriksaanDokumenScreenState extends State<PemeriksaanDokumenScreen> {
 
     final student = _repo.getUserById(doc.mahasiswaId);
     final revisions = _repo.getRevisionsForDocument(doc.dokumenId);
+    // Aturan FIFO: Cek apakah dokumen ini berhak divalidasi (indeks 0 / urutan teratas)
+    final bool canValidate = _repo.canValidateDocument(doc.dokumenId);
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text('Pemeriksaan Berkas #${doc.dokumenId}'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.edit_note_rounded),
-            tooltip: 'Ubah Status',
-            onPressed: () => _showChangeStatusDialog(doc),
-          ),
+          if (canValidate)
+            IconButton(
+              icon: const Icon(Icons.edit_note_rounded),
+              tooltip: 'Ubah Status',
+              onPressed: () => _showChangeStatusDialog(doc),
+            ),
         ],
       ),
       bottomNavigationBar: Container(
@@ -214,59 +241,127 @@ class _PemeriksaanDokumenScreenState extends State<PemeriksaanDokumenScreen> {
             ),
           ],
         ),
-        child: Row(
-          children: [
-            Expanded(
-              child: CustomButton(
-                text: 'Minta Revisi',
-                icon: Icons.edit_note,
-                type: ButtonType.danger,
-                onPressed: () {
-                  _repo.updateDocumentStatus(
-                    dokumenId: doc.dokumenId,
-                    newStatus: AppConstants.statusRevisi,
-                    revisionNotes:
-                        'Perlu perbaikan sesuai catatan yang diberikan.',
-                  );
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Dokumen ditandai: Minta Revisi ke Mahasiswa',
+        child: canValidate
+            ? Row(
+                children: [
+                  Expanded(
+                    child: CustomButton(
+                      text: 'Minta Revisi',
+                      icon: Icons.edit_note,
+                      type: ButtonType.danger,
+                      onPressed: () {
+                        _repo.updateDocumentStatus(
+                          dokumenId: doc.dokumenId,
+                          newStatus: AppConstants.statusRevisi,
+                          revisionNotes:
+                              'Perlu perbaikan sesuai catatan yang diberikan.',
+                        );
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Dokumen ditandai: Minta Revisi ke Mahasiswa',
+                            ),
+                            backgroundColor: AppColors.statusRevisi,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: CustomButton(
+                      text: 'Setujui / Selesai',
+                      icon: Icons.check_circle_outline,
+                      type: ButtonType.success,
+                      onPressed: () {
+                        _repo.updateDocumentStatus(
+                          dokumenId: doc.dokumenId,
+                          newStatus: AppConstants.statusSelesai,
+                        );
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Dokumen berhasil Disetujui & Selesai!'),
+                            backgroundColor: AppColors.statusSelesai,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              )
+            : Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFCBD5E1)),
+                ),
+                child: Row(
+                  children: const [
+                    Icon(Icons.lock_rounded, color: Color(0xFF64748B), size: 20),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Tombol validasi dikunci. Dokumen antrean teratas wajib disetujui atau direvisi terlebih dahulu sesuai prinsip FIFO.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF475569),
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                      backgroundColor: AppColors.statusRevisi,
                     ),
-                  );
-                },
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: CustomButton(
-                text: 'Setujui / Selesai',
-                icon: Icons.check_circle_outline,
-                type: ButtonType.success,
-                onPressed: () {
-                  _repo.updateDocumentStatus(
-                    dokumenId: doc.dokumenId,
-                    newStatus: AppConstants.statusSelesai,
-                  );
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Dokumen berhasil Disetujui & Selesai!'),
-                      backgroundColor: AppColors.statusSelesai,
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Peringatan jika Antrean Terkunci
+            if (!canValidate) ...[
+              Container(
+                padding: const EdgeInsets.all(14),
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFFCA5A5)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Icon(Icons.lock_rounded, color: Colors.red, size: 22),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'ANTREAN TERKUNCI (FIFO)',
+                            style: TextStyle(
+                              color: Color(0xFF991B1B),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Dokumen ini berada pada antrean berikutnya. Sesuai aturan FIFO, dokumen urutan sebelumnya harus disetujui (approved) atau direvisi terlebih dahulu sebelum dokumen ini dapat divalidasi.',
+                            style: TextStyle(
+                              color: Color(0xFF7F1D1D),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
             // Student & Document Overview
             Container(
               padding: const EdgeInsets.all(16),
@@ -282,27 +377,43 @@ class _PemeriksaanDokumenScreenState extends State<PemeriksaanDokumenScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       StatusBadge(status: doc.status, isLarge: true),
-                      InkWell(
-                        onTap: () => _showChangeStatusDialog(doc),
-                        child: Row(
+                      if (canValidate)
+                        InkWell(
+                          onTap: () => _showChangeStatusDialog(doc),
+                          child: Row(
+                            children: const [
+                              Icon(
+                                Icons.edit,
+                                size: 14,
+                                color: AppColors.primary,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                'Ubah Status',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        Row(
                           children: const [
-                            Icon(
-                              Icons.edit,
-                              size: 14,
-                              color: AppColors.primary,
-                            ),
+                            Icon(Icons.lock_outline, size: 14, color: Color(0xFF64748B)),
                             SizedBox(width: 4),
                             Text(
-                              'Ubah Status',
+                              'Status Terkunci',
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
-                                color: AppColors.primary,
+                                color: Color(0xFF64748B),
                               ),
                             ),
                           ],
                         ),
-                      ),
                     ],
                   ),
                   const SizedBox(height: 10),
@@ -454,8 +565,8 @@ class _PemeriksaanDokumenScreenState extends State<PemeriksaanDokumenScreen> {
               title: doc.judulDokumen,
               fileName: doc.fileName,
               revisions: revisions,
-              isDosen: true,
-              onAddAnnotation: _addAnnotationFromViewer,
+              isDosen: canValidate,
+              onAddAnnotation: canValidate ? _addAnnotationFromViewer : null,
             ),
             const SizedBox(height: 40),
           ],
