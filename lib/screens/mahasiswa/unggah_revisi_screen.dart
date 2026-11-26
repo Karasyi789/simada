@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../core/constants/app_colors.dart';
 import '../../models/document_model.dart';
 import '../../services/simada_repository.dart';
@@ -20,8 +21,10 @@ class _UnggahRevisiScreenState extends State<UnggahRevisiScreen> {
   final _keteranganController = TextEditingController();
   final SimadaRepository _repo = SimadaRepository();
 
+  String? _selectedFilePath;
   String? _selectedFileName;
   double _selectedFileSizeMb = 0.0;
+  bool _isPickingFile = false;
   bool _isSubmitting = false;
 
   @override
@@ -30,23 +33,69 @@ class _UnggahRevisiScreenState extends State<UnggahRevisiScreen> {
     super.dispose();
   }
 
-  void _pickRevisedFile() {
-    final nextRev = widget.document.revisionCount + 1;
-    final cleanName = widget.document.fileName.replaceAll('.pdf', '');
-    final newFileName = '${cleanName}_Revisi$nextRev.pdf';
-    final newSize = 2.6;
+  Future<void> _pickRevisedFile() async {
+    setState(() => _isPickingFile = true);
 
-    setState(() {
-      _selectedFileName = newFileName;
-      _selectedFileSizeMb = newSize;
-    });
+    try {
+      final files = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+      );
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Berkas revisi dipilih: $newFileName'),
-        backgroundColor: AppColors.statusProses,
-      ),
-    );
+      if (files.isNotEmpty) {
+        final file = files.first;
+        final lengthInBytes = file.lengthSync() ?? (await file.length()) ?? 0;
+        final sizeMb = lengthInBytes > 0 ? (lengthInBytes / (1024 * 1024)) : 0.0;
+
+        if (sizeMb > 10.0) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Ukuran berkas melebihi batas maksimal 10 MB!'),
+                backgroundColor: AppColors.statusRevisi,
+              ),
+            );
+          }
+          return;
+        }
+
+        setState(() {
+          _selectedFilePath = file.path;
+          _selectedFileName = file.name;
+          _selectedFileSizeMb = double.parse(sizeMb.toStringAsFixed(2));
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Berkas revisi dipilih: ${file.name} ($_selectedFileSizeMb MB)'),
+              backgroundColor: AppColors.statusProses,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      } else {
+        if (mounted && _selectedFileName == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Pemilihan berkas perbaikan dibatalkan.'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal memilih berkas PDF: $e'),
+            backgroundColor: AppColors.statusRevisi,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isPickingFile = false);
+    }
   }
 
   void _submitRevision() {
@@ -66,6 +115,7 @@ class _UnggahRevisiScreenState extends State<UnggahRevisiScreen> {
       _repo.submitRevisionDocument(
         dokumenId: widget.document.dokumenId,
         fileName: _selectedFileName!,
+        filePath: _selectedFilePath,
         fileSizeMb: _selectedFileSizeMb,
       );
 
@@ -168,11 +218,21 @@ class _UnggahRevisiScreenState extends State<UnggahRevisiScreen> {
                   ),
                   child: Column(
                     children: [
-                      Icon(
-                        _selectedFileName != null ? Icons.task_alt_rounded : Icons.cloud_upload_outlined,
-                        size: 38,
-                        color: _selectedFileName != null ? AppColors.primary : AppColors.textSecondary,
-                      ),
+                      if (_isPickingFile)
+                        const Padding(
+                          padding: EdgeInsets.all(4.0),
+                          child: SizedBox(
+                            height: 30,
+                            width: 30,
+                            child: CircularProgressIndicator(strokeWidth: 2.5),
+                          ),
+                        )
+                      else
+                        Icon(
+                          _selectedFileName != null ? Icons.task_alt_rounded : Icons.cloud_upload_outlined,
+                          size: 38,
+                          color: _selectedFileName != null ? AppColors.primary : AppColors.textSecondary,
+                        ),
                       const SizedBox(height: 8),
                       Text(
                         _selectedFileName ?? 'Ketuk untuk Memilih File Perbaikan (.pdf)',

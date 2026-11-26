@@ -310,6 +310,7 @@ class SimadaRepository extends ChangeNotifier {
   void submitRevisionDocument({
     required int dokumenId,
     required String fileName,
+    String? filePath,
     double fileSizeMb = 1.8,
   }) {
     final docIndex = _documents.indexWhere((d) => d.dokumenId == dokumenId);
@@ -321,7 +322,7 @@ class SimadaRepository extends ChangeNotifier {
     // Reset status ke 'Menunggu' dan perbarui timestamp created_at untuk urutan FIFO baru
     _documents[docIndex] = oldDoc.copyWith(
       fileName: fileName,
-      filePath: 'dokumen/${now.year}/revisi_$fileName',
+      filePath: filePath ?? 'dokumen/${now.year}/revisi_$fileName',
       fileSizeMb: fileSizeMb,
       status: AppConstants.statusMenunggu,
       createdAt: now, // Urutan antrean baru berdasarkan timestamp pengajuan revisi
