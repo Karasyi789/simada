@@ -18,17 +18,16 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _usernameController = TextEditingController(
-    text: '2021001',
-  ); // default mahasiswa Ahmad
-  final _passwordController = TextEditingController(text: '123456');
+  final _usernameController = TextEditingController();
+  final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
   final AuthService _authService = AuthService();
 
   @override
   void dispose() {
-    _usernameController.disposeSemaphore();
+    _usernameController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
@@ -49,7 +48,9 @@ class _LoginScreenState extends State<LoginScreen> {
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('NIM/NIP atau Password tidak ditemukan!'),
+            content: Text(
+              'NIM/NIP/Email atau kata sandi tidak sesuai. Silakan periksa kembali.',
+            ),
             backgroundColor: AppColors.statusRevisi,
           ),
         );
@@ -77,15 +78,6 @@ class _LoginScreenState extends State<LoginScreen> {
       context,
       MaterialPageRoute(builder: (_) => destination),
     );
-  }
-
-  // Quick switch for reviewers/testers
-  void _quickFillUser(String id, String pwd) {
-    setState(() {
-      _usernameController.text = id;
-      _passwordController.text = pwd;
-    });
-    _login();
   }
 
   @override
@@ -152,79 +144,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 28),
 
-                  // Quick Demo Switcher Card
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEFF6FF),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFBFDBFE)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: const [
-                            Icon(
-                              Icons.bolt_rounded,
-                              color: AppColors.primaryLight,
-                              size: 18,
-                            ),
-                            SizedBox(width: 6),
-                            Text(
-                              'Pilih Akun Demo (Uji Coba Cepat):',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primaryDark,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            ActionChip(
-                              label: const Text('🎓 Mahasiswa (Ahmad)'),
-                              labelStyle: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                              ),
-                              backgroundColor: Colors.white,
-                              onPressed: () =>
-                                  _quickFillUser('2021001', '123456'),
-                            ),
-                            ActionChip(
-                              label: const Text('👨‍🏫 Dosen (Dr. Budi)'),
-                              labelStyle: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                              ),
-                              backgroundColor: Colors.white,
-                              onPressed: () => _quickFillUser(
-                                '198501012010121001',
-                                '123456',
-                              ),
-                            ),
-                            ActionChip(
-                              label: const Text('⚙️ Admin Prodi'),
-                              labelStyle: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                              ),
-                              backgroundColor: Colors.white,
-                              onPressed: () =>
-                                  _quickFillUser('adminprodi', '123456'),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
                   // Form Card
                   Container(
                     padding: const EdgeInsets.all(22),
@@ -255,17 +174,18 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 16),
 
-                          // Username / NIM / NIP
+                          // Username / NIM / NIP / Email
                           TextFormField(
                             controller: _usernameController,
+                            keyboardType: TextInputType.emailAddress,
                             decoration: const InputDecoration(
-                              labelText: 'NIM / NIP / Username',
-                              hintText: 'Masukkan NIM, NIP, atau username',
+                              labelText: 'NIM / NIP / Email',
+                              hintText: 'Masukkan NIM, NIP, atau email akademik',
                               prefixIcon: Icon(Icons.badge_outlined),
                             ),
                             validator: (val) {
                               if (val == null || val.trim().isEmpty) {
-                                return 'NIM/NIP tidak boleh kosong';
+                                return 'NIM, NIP, atau Email wajib diisi';
                               }
                               return null;
                             },
@@ -277,7 +197,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             controller: _passwordController,
                             obscureText: _obscurePassword,
                             decoration: InputDecoration(
-                              labelText: 'Password',
+                              labelText: 'Kata Sandi',
+                              hintText: 'Masukkan kata sandi akun',
                               prefixIcon: const Icon(Icons.lock_outline),
                               suffixIcon: IconButton(
                                 icon: Icon(
@@ -294,7 +215,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             validator: (val) {
                               if (val == null || val.isEmpty) {
-                                return 'Password wajib diisi';
+                                return 'Kata sandi wajib diisi';
                               }
                               return null;
                             },
@@ -352,11 +273,5 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
-  }
-}
-
-extension on TextEditingController {
-  void disposeSemaphore() {
-    dispose();
   }
 }

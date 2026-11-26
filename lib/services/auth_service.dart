@@ -6,15 +6,16 @@ class AuthService {
 
   UserModel? get currentUser => _repo.currentUser;
 
-  /// Login dengan NIM/NIP/Username dan Password
+  /// Login dengan NIM/NIP/Email/Username dan Password
   UserModel? login(String usernameOrId, String password) {
     final cleanInput = usernameOrId.trim().toLowerCase();
     
-    // Cari user berdasarkan username, nim, nip atau id
+    // Cari user berdasarkan username, nim, nip, email, atau id
     final user = _repo.users.cast<UserModel?>().firstWhere(
       (u) =>
           u?.username.toLowerCase() == cleanInput ||
-          u?.userId.toLowerCase() == cleanInput,
+          u?.userId.toLowerCase() == cleanInput ||
+          (u?.email?.toLowerCase() == cleanInput),
       orElse: () => null,
     );
 
