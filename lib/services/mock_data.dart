@@ -5,12 +5,12 @@ import '../models/revision_model.dart';
 import '../core/constants/app_constants.dart';
 
 class MockData {
-  // Mock Users
+  // Master Pengguna Akademik
   static List<UserModel> initialUsers = [
     // Mahasiswa
     UserModel(
       userId: 'mhs_001',
-      username: '2021001',
+      username: '20210801001',
       namaLengkap: 'Ahmad Fauzi',
       role: AppConstants.roleMahasiswa,
       createdAt: DateTime.now().subtract(const Duration(days: 90)),
@@ -19,7 +19,7 @@ class MockData {
     ),
     UserModel(
       userId: 'mhs_002',
-      username: '2021002',
+      username: '20210801015',
       namaLengkap: 'Siti Rahmawati',
       role: AppConstants.roleMahasiswa,
       createdAt: DateTime.now().subtract(const Duration(days: 85)),
@@ -28,7 +28,7 @@ class MockData {
     ),
     UserModel(
       userId: 'mhs_003',
-      username: '2021003',
+      username: '20220802023',
       namaLengkap: 'Budi Santoso',
       role: AppConstants.roleMahasiswa,
       createdAt: DateTime.now().subtract(const Duration(days: 70)),
@@ -37,7 +37,7 @@ class MockData {
     ),
     UserModel(
       userId: 'mhs_004',
-      username: '2021004',
+      username: '20220801042',
       namaLengkap: 'Dewi Lestari',
       role: AppConstants.roleMahasiswa,
       createdAt: DateTime.now().subtract(const Duration(days: 60)),
@@ -74,7 +74,7 @@ class MockData {
       prodi: 'Sistem Informasi',
     ),
 
-    // Admin
+    // Admin Biro Akademik
     UserModel(
       userId: 'adm_001',
       username: 'adminprodi',
@@ -86,84 +86,37 @@ class MockData {
     ),
   ];
 
-  // Initial Documents seeded in FIFO chronological order
+  // Data Pengajuan Dokumen Awal (1-2 data realistis untuk demo antrean FIFO)
   static List<DocumentModel> initialDocuments = [
     DocumentModel(
       dokumenId: 101,
       mahasiswaId: 'mhs_001',
       dosenId: 'dsn_001',
-      judulDokumen: 'Rancang Bangun Sistem Informasi Monitoring Magang Berbasis Web',
-      kategori: 'Proposal',
-      filePath: 'dokumen/2026/proposal_ahmad_fauzi.pdf',
-      fileName: 'Proposal_Ahmad_Fauzi_TI.pdf',
+      judulDokumen: 'Pengajuan Judul Skripsi: Sistem Informasi Pelayanan Terpadu Mahasiswa',
+      kategori: 'Skripsi',
+      filePath: 'dokumen/skripsi/Pengajuan_Skripsi_Ahmad_Fauzi.pdf',
+      fileName: 'Pengajuan_Skripsi_Ahmad_Fauzi.pdf',
       fileSizeMb: 2.4,
-      status: AppConstants.statusSedangDiperiksa, // Sedang diproses Dosen
-      createdAt: DateTime.now().subtract(const Duration(hours: 3, minutes: 15)),
+      status:
+          AppConstants.statusSedangDiperiksa, // Urutan 1: Sedang diproses Dosen
+      createdAt: DateTime.now().subtract(const Duration(minutes: 45)),
     ),
     DocumentModel(
       dokumenId: 102,
       mahasiswaId: 'mhs_002',
       dosenId: 'dsn_001',
-      judulDokumen: 'Implementasi Algoritma FIFO pada Antrean Bimbingan Akademik',
-      kategori: 'Proposal',
-      filePath: 'dokumen/2026/proposal_siti_rahma.pdf',
-      fileName: 'Proposal_Siti_Rahma_v1.pdf',
-      fileSizeMb: 3.1,
-      status: AppConstants.statusMenunggu, // Antrean berikutnya setelah Ahmad
-      createdAt: DateTime.now().subtract(const Duration(hours: 2, minutes: 40)),
-    ),
-    DocumentModel(
-      dokumenId: 103,
-      mahasiswaId: 'mhs_003',
-      dosenId: 'dsn_001',
-      judulDokumen: 'Analisis Keamanan Jaringan Menggunakan Intrusion Detection System',
-      kategori: 'Skripsi',
-      filePath: 'dokumen/2026/skripsi_budi_santoso.pdf',
-      fileName: 'Bab1_3_Budi_Santoso.pdf',
-      fileSizeMb: 4.8,
-      status: AppConstants.statusMenunggu,
-      createdAt: DateTime.now().subtract(const Duration(hours: 1, minutes: 50)),
-    ),
-    DocumentModel(
-      dokumenId: 104,
-      mahasiswaId: 'mhs_004',
-      dosenId: 'dsn_001',
-      judulDokumen: 'Surat Pengantar Penelitian Instansi Dinas Kominfo',
+      judulDokumen:
+          'Surat Pengantar Magang/PKL pada Dinas Komunikasi dan Informatika',
       kategori: 'Surat Pengantar',
-      filePath: 'dokumen/2026/surat_dewi.pdf',
-      fileName: 'Surat_Pengantar_Dewi_Lestari.pdf',
-      fileSizeMb: 0.9,
-      status: AppConstants.statusRevisi,
-      createdAt: DateTime.now().subtract(const Duration(days: 1, hours: 4)),
-      revisionCount: 1,
-    ),
-    DocumentModel(
-      dokumenId: 105,
-      mahasiswaId: 'mhs_001',
-      dosenId: 'dsn_002',
-      judulDokumen: 'Penerapan Deep Learning untuk Deteksi Kerusakan Tanaman Padi',
-      kategori: 'Skripsi',
-      filePath: 'dokumen/2026/skripsi_ahmad_fauzi.pdf',
-      fileName: 'Skripsi_Ahmad_Fauzi_Full.pdf',
-      fileSizeMb: 5.6,
-      status: AppConstants.statusSelesai,
-      createdAt: DateTime.now().subtract(const Duration(days: 3)),
-    ),
-    DocumentModel(
-      dokumenId: 106,
-      mahasiswaId: 'mhs_003',
-      dosenId: 'dsn_003',
-      judulDokumen: 'Pengembangan Dashboard Eksekutif Penjualan Menggunakan PowerBI',
-      kategori: 'Laporan Magang / PKL',
-      filePath: 'dokumen/2026/laporan_pkl_budi.pdf',
-      fileName: 'Laporan_PKL_Budi_Santoso.pdf',
-      fileSizeMb: 2.1,
-      status: AppConstants.statusMenunggu,
-      createdAt: DateTime.now().subtract(const Duration(hours: 4)),
+      filePath: 'dokumen/surat/Surat_Pengantar_Magang_Siti_Rahmawati.pdf',
+      fileName: 'Surat_Pengantar_Magang_Siti_Rahmawati.pdf',
+      fileSizeMb: 1.2,
+      status: AppConstants.statusMenunggu, // Urutan 2: Menunggu (Terkunci FIFO)
+      createdAt: DateTime.now().subtract(const Duration(minutes: 20)),
     ),
   ];
 
-  // Initial Queues
+  // Antrean FIFO Awal
   static List<QueueModel> initialQueues = [
     QueueModel(
       antreanId: 1,
@@ -171,7 +124,7 @@ class MockData {
       dosenId: 'dsn_001',
       nomorAntrean: 1,
       posisiSekarang: AppConstants.queueProcessing,
-      waktuMasuk: DateTime.now().subtract(const Duration(hours: 3, minutes: 15)),
+      waktuMasuk: DateTime.now().subtract(const Duration(minutes: 45)),
     ),
     QueueModel(
       antreanId: 2,
@@ -179,52 +132,10 @@ class MockData {
       dosenId: 'dsn_001',
       nomorAntrean: 2,
       posisiSekarang: AppConstants.queueWaiting,
-      waktuMasuk: DateTime.now().subtract(const Duration(hours: 2, minutes: 40)),
-    ),
-    QueueModel(
-      antreanId: 3,
-      dokumenId: 103,
-      dosenId: 'dsn_001',
-      nomorAntrean: 3,
-      posisiSekarang: AppConstants.queueWaiting,
-      waktuMasuk: DateTime.now().subtract(const Duration(hours: 1, minutes: 50)),
-    ),
-    QueueModel(
-      antreanId: 4,
-      dokumenId: 104,
-      dosenId: 'dsn_001',
-      nomorAntrean: 4,
-      posisiSekarang: AppConstants.queueDone,
-      waktuMasuk: DateTime.now().subtract(const Duration(days: 1, hours: 4)),
-    ),
-    QueueModel(
-      antreanId: 5,
-      dokumenId: 105,
-      dosenId: 'dsn_002',
-      nomorAntrean: 1,
-      posisiSekarang: AppConstants.queueDone,
-      waktuMasuk: DateTime.now().subtract(const Duration(days: 3)),
-    ),
-    QueueModel(
-      antreanId: 6,
-      dokumenId: 106,
-      dosenId: 'dsn_003',
-      nomorAntrean: 1,
-      posisiSekarang: AppConstants.queueWaiting,
-      waktuMasuk: DateTime.now().subtract(const Duration(hours: 4)),
+      waktuMasuk: DateTime.now().subtract(const Duration(minutes: 20)),
     ),
   ];
 
-  // Initial Revisions
-  static List<RevisionModel> initialRevisions = [
-    RevisionModel(
-      revisiId: 1,
-      dokumenId: 104,
-      dosenId: 'dsn_001',
-      catatan: 'Nama pejabat instansi tujuan salah tulis, dan nomor surat permohonan dari fakultas harap dilampirkan.',
-      halamanRevisi: 2,
-      createdAt: DateTime.now().subtract(const Duration(days: 1, hours: 2)),
-    ),
-  ];
+  // Riwayat Catatan Revisi
+  static List<RevisionModel> initialRevisions = [];
 }
-
