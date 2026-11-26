@@ -128,9 +128,44 @@ class SimadaRepository extends ChangeNotifier {
     return waitingList.first;
   }
 
+  /// Memeriksa apakah suatu dokumen di antrean aktif dosen dapat divalidasi.
+  /// Berdasarkan prinsip FIFO:
+  /// Dokumen urutan pertama (indeks 0 / antrean teratas yang berstatus "Menunggu" atau "Sedang Diperiksa")
+  /// harus disetujui (status: Selesai / isSelesai) atau direvisi (status: Revisi / isRevisi) terlebih dahulu.
+  /// Dokumen di urutan berikutnya (ke-2, ke-3, dst.) terkunci dan tidak bisa divalidasi.
+  bool canValidateDocument(int dokumenId) {
+    final doc = getDocumentById(dokumenId);
+    if (doc == null) return false;
+
+    // Dokumen yang sudah berstatus Selesai atau Revisi sudah selesai diproses dari antrean aktif
+    if (doc.isSelesai || doc.isRevisi) return true;
+
+    final activeQueue = getActiveQueueForDosen(doc.dosenId);
+    if (activeQueue.isEmpty) return false;
+
+    // Hanya dokumen indeks pertama (antrean teratas) yang dapat divalidasi
+    return activeQueue.first.dokumenId == dokumenId;
+  }
+
+  /// Memeriksa apakah dokumen pada indeks tertentu terkunci dengan mengecek status dokumen pada indeks sebelumnya
+  bool isQueueItemLocked(List<DocumentModel> queueList, int index) {
+    if (index <= 0) return false;
+    final prevDoc = queueList[index - 1];
+    // Jika dokumen indeks sebelumnya belum disetujui (isSelesai) dan belum direvisi (isRevisi),
+    // maka dokumen pada indeks ini terkunci
+    return !prevDoc.isSelesai && !prevDoc.isRevisi;
+  }
+
   /// Fitur Dosen: "Ambil Antrean Berikutnya" (Next Queue)
   /// Secara otomatis memproses mahasiswa urutan FIFO pertama yang berstatus 'Menunggu'
+  /// Dilindungi aturan FIFO: tidak dapat memanggil antrean baru jika antrean aktif saat ini belum selesai.
   bool processNextQueue(String dosenId) {
+    final currentlyExamining = getCurrentlyExaminingDoc(dosenId);
+    if (currentlyExamining != null) {
+      _addLog('FIFO Ditolak: Harap selesaikan Dokumen #${currentlyExamining.dokumenId} terlebih dahulu sebelum memanggil antrean berikutnya.');
+      return false;
+    }
+
     final nextDoc = getNextWaitingDocument(dosenId);
     if (nextDoc == null) return false;
 
@@ -170,6 +205,15 @@ class SimadaRepository extends ChangeNotifier {
     if (docIndex == -1) return;
 
     final oldDoc = _documents[docIndex];
+
+    // Validasi FIFO: Pastikan dokumen ini urutan pertama yang berhak divalidasi
+    if (!canValidateDocument(dokumenId)) {
+      final activeQueue = getActiveQueueForDosen(oldDoc.dosenId);
+      final firstDoc = activeQueue.isNotEmpty ? activeQueue.first : null;
+      _addLog('FIFO Ditolak: Dokumen #$dokumenId terkunci. Selesaikan dokumen urutan pertama (${firstDoc?.judulDokumen ?? "antrean teratas"}) terlebih dahulu.');
+      return;
+    }
+
     int newRevisionCount = oldDoc.revisionCount;
 
     if (newStatus == AppConstants.statusRevisi && revisionNotes != null && revisionNotes.trim().isNotEmpty) {
@@ -208,7 +252,7 @@ class SimadaRepository extends ChangeNotifier {
     }
 
     final mhs = getUserById(oldDoc.mahasiswaId);
-    _addLog('Status Dokumen #${dokumenId} ("${oldDoc.judulDokumen}") diperbarui menjadi "$newStatus" untuk ${mhs?.namaLengkap ?? "Mahasiswa"}.');
+    _addLog('Status Dokumen #$dokumenId ("${oldDoc.judulDokumen}") diperbarui menjadi "$newStatus" untuk ${mhs?.namaLengkap ?? "Mahasiswa"}.');
     notifyListeners();
   }
 
@@ -219,6 +263,7 @@ class SimadaRepository extends ChangeNotifier {
     required String judulDokumen,
     required String kategori,
     required String fileName,
+    String? filePath,
     double fileSizeMb = 1.5,
   }) {
     final now = DateTime.now();
@@ -234,7 +279,7 @@ class SimadaRepository extends ChangeNotifier {
       dosenId: dosenId,
       judulDokumen: judulDokumen,
       kategori: kategori,
-      filePath: 'dokumen/${now.year}/$fileName',
+      filePath: filePath ?? 'dokumen/${now.year}/$fileName',
       fileName: fileName,
       fileSizeMb: fileSizeMb,
       status: AppConstants.statusMenunggu,
@@ -265,6 +310,7 @@ class SimadaRepository extends ChangeNotifier {
   void submitRevisionDocument({
     required int dokumenId,
     required String fileName,
+    String? filePath,
     double fileSizeMb = 1.8,
   }) {
     final docIndex = _documents.indexWhere((d) => d.dokumenId == dokumenId);
@@ -276,7 +322,7 @@ class SimadaRepository extends ChangeNotifier {
     // Reset status ke 'Menunggu' dan perbarui timestamp created_at untuk urutan FIFO baru
     _documents[docIndex] = oldDoc.copyWith(
       fileName: fileName,
-      filePath: 'dokumen/${now.year}/revisi_$fileName',
+      filePath: filePath ?? 'dokumen/${now.year}/revisi_$fileName',
       fileSizeMb: fileSizeMb,
       status: AppConstants.statusMenunggu,
       createdAt: now, // Urutan antrean baru berdasarkan timestamp pengajuan revisi
@@ -293,7 +339,7 @@ class SimadaRepository extends ChangeNotifier {
     }
 
     final mhs = getUserById(oldDoc.mahasiswaId);
-    _addLog('Revisi Diunggah: ${mhs?.namaLengkap} mengunggah berkas revisi untuk Dokumen #${dokumenId}.');
+    _addLog('Revisi Diunggah: ${mhs?.namaLengkap} mengunggah berkas revisi untuk Dokumen #$dokumenId.');
     notifyListeners();
   }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_constants.dart';
 import '../../models/user_model.dart';
@@ -24,8 +25,10 @@ class _PengajuanDokumenScreenState extends State<PengajuanDokumenScreen> {
 
   String _selectedKategori = AppConstants.kategoriDokumen.first;
   String? _selectedDosenId;
+  String? _selectedFilePath;
   String? _selectedFileName;
   double _selectedFileSizeMb = 0.0;
+  bool _isPickingFile = false;
   bool _isUploading = false;
 
   @override
@@ -42,26 +45,79 @@ class _PengajuanDokumenScreenState extends State<PengajuanDokumenScreen> {
     super.dispose();
   }
 
-  // Simulated PDF File Picker with format & size validation
-  void _pickPdfFile() {
-    // Generate realistic sample filename based on category & student
-    final cleanNim = widget.mahasiswa.username;
-    final catCode = _selectedKategori.replaceAll(' ', '_');
-    final mockFileName = '${catCode}_${cleanNim}_TA2026.pdf';
-    final mockSize = 2.45; // MB (< 10MB limit)
+  /// Membuka dialog direktori penyimpanan perangkat (Laptop/HP/PC)
+  /// Membatasi ekstensi hanya untuk file .pdf dan maks 10 MB
+  Future<void> _pickPdfFile() async {
+    setState(() => _isPickingFile = true);
 
-    setState(() {
-      _selectedFileName = mockFileName;
-      _selectedFileSizeMb = mockSize;
-    });
+    try {
+      final files = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+      );
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Berkas terpilih: $mockFileName (${mockSize} MB)'),
-        backgroundColor: AppColors.statusProses,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+      // Tangani kondisi jika pengguna memilih file
+      if (files.isNotEmpty) {
+        final file = files.first;
+        final lengthInBytes = file.lengthSync() ?? (await file.length()) ?? 0;
+        final sizeMb = lengthInBytes > 0 ? (lengthInBytes / (1024 * 1024)) : 0.0;
+
+        // Validasi ukuran dokumen maksimal 10 MB
+        if (sizeMb > 10.0) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Ukuran file melebihi batas maksimal 10 MB!'),
+                backgroundColor: AppColors.statusRevisi,
+              ),
+            );
+          }
+          return;
+        }
+
+        // Simpan path dan detail file ke dalam state form
+        setState(() {
+          _selectedFilePath = file.path;
+          _selectedFileName = file.name;
+          _selectedFileSizeMb = double.parse(sizeMb.toStringAsFixed(2));
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Berkas PDF dipilih: ${file.name} ($_selectedFileSizeMb MB)',
+              ),
+              backgroundColor: AppColors.statusProses,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      } else {
+        // Tangani kondisi aman jika pengguna membatalkan pilihan file (cancel dialog)
+        if (mounted && _selectedFileName == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Pemilihan berkas PDF dibatalkan.'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal membuka direktori perangkat: $e'),
+            backgroundColor: AppColors.statusRevisi,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isPickingFile = false);
+      }
+    }
   }
 
   void _submit() {
@@ -96,6 +152,7 @@ class _PengajuanDokumenScreenState extends State<PengajuanDokumenScreen> {
         judulDokumen: _judulController.text.trim(),
         kategori: _selectedKategori,
         fileName: _selectedFileName!,
+        filePath: _selectedFilePath,
         fileSizeMb: _selectedFileSizeMb,
       );
 
@@ -285,72 +342,133 @@ class _PengajuanDokumenScreenState extends State<PengajuanDokumenScreen> {
                       const SizedBox(height: 20),
 
                       // File Picker Section (PDF format, max size)
-                      const Text(
-                        'Unggah Berkas PDF (Maks. 10 MB) *',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Unggah Berkas PDF (Maks. 10 MB) *',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                          ),
+                          if (_selectedFileName != null)
+                            TextButton.icon(
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                visualDensity: VisualDensity.compact,
+                              ),
+                              icon: const Icon(Icons.refresh_rounded, size: 14),
+                              label: const Text('Ganti File', style: TextStyle(fontSize: 11)),
+                              onPressed: _isUploading ? null : _pickPdfFile,
+                            ),
+                        ],
                       ),
                       const SizedBox(height: 8),
                       InkWell(
-                        onTap: _pickPdfFile,
+                        onTap: _isUploading ? null : _pickPdfFile,
                         borderRadius: BorderRadius.circular(12),
                         child: Container(
                           width: double.infinity,
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF8FAFC),
+                            color: _selectedFileName != null
+                                ? const Color(0xFFF0FDF4)
+                                : const Color(0xFFF8FAFC),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: _selectedFileName != null
-                                  ? AppColors.primary
+                                  ? AppColors.statusSelesai
                                   : AppColors.border,
-                              width: _selectedFileName != null ? 1.5 : 1,
+                              width: _selectedFileName != null ? 1.6 : 1,
                               style: BorderStyle.solid,
                             ),
                           ),
-                          child: Column(
-                            children: [
-                              Icon(
-                                _selectedFileName != null
-                                    ? Icons.check_circle_rounded
-                                    : Icons.cloud_upload_outlined,
-                                size: 36,
-                                color: _selectedFileName != null
-                                    ? AppColors.primary
-                                    : AppColors.textSecondary,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                _selectedFileName ?? 'Ketuk untuk Memilih Berkas PDF',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: _selectedFileName != null
-                                      ? AppColors.primary
-                                      : AppColors.textPrimary,
+                          child: _isPickingFile
+                              ? Column(
+                                  children: const [
+                                    SizedBox(
+                                      width: 28,
+                                      height: 28,
+                                      child: CircularProgressIndicator(strokeWidth: 2.5),
+                                    ),
+                                    SizedBox(height: 10),
+                                    Text(
+                                      'Membuka direktori perangkat...',
+                                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                                    ),
+                                  ],
+                                )
+                              : Column(
+                                  children: [
+                                    Icon(
+                                      _selectedFileName != null
+                                          ? Icons.picture_as_pdf_rounded
+                                          : Icons.folder_open_rounded,
+                                      size: 38,
+                                      color: _selectedFileName != null
+                                          ? Colors.redAccent
+                                          : AppColors.primary,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      _selectedFileName ?? 'Buka Direktori & Pilih File PDF',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: _selectedFileName != null
+                                            ? AppColors.textPrimary
+                                            : AppColors.primary,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      _selectedFileName != null
+                                          ? 'Ukuran: $_selectedFileSizeMb MB • Berkas siap diunggah'
+                                          : 'Format dibatasi khusus: .pdf (Maksimum 10 MB)',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: _selectedFileName != null
+                                            ? AppColors.statusSelesai
+                                            : AppColors.textSecondary,
+                                        fontWeight: _selectedFileName != null
+                                            ? FontWeight.w600
+                                            : FontWeight.normal,
+                                      ),
+                                    ),
+                                    if (_selectedFilePath != null) ...[
+                                      const SizedBox(height: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(4),
+                                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                                        ),
+                                        child: Text(
+                                          'Path: $_selectedFilePath',
+                                          style: const TextStyle(
+                                            fontSize: 10,
+                                            color: Color(0xFF64748B),
+                                            fontFamily: 'monospace',
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                _selectedFileName != null
-                                    ? 'Ukuran: $_selectedFileSizeMb MB • Format valid PDF'
-                                    : 'Format yang didukung: .pdf (Maksimum 10 MB)',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
                         ),
                       ),
                       const SizedBox(height: 28),
 
-                      // Submit Button
+                      // Submit Button (hanya aktif jika file sudah dipilih ke dalam state form)
                       CustomButton(
-                        text: 'Unggah & Ambil Nomor Antrean (FIFO)',
+                        text: _selectedFileName == null
+                            ? 'Pilih File PDF Dahulu (Tombol Dikunci)'
+                            : 'Unggah & Ambil Nomor Antrean (FIFO)',
                         icon: Icons.send_rounded,
                         isLoading: _isUploading,
-                        onPressed: _submit,
+                        onPressed: (_selectedFileName != null && !_isUploading) ? _submit : null,
                       ),
                     ],
                   ),

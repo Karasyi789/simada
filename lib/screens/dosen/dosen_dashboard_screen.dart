@@ -42,6 +42,20 @@ class _DosenDashboardScreenState extends State<DosenDashboardScreen> {
   }
 
   void _triggerNextQueue(String dosenId) {
+    final currentlyExamining = _repo.getCurrentlyExaminingDoc(dosenId);
+    if (currentlyExamining != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'FIFO Terkunci: Harap selesaikan (setujui atau revisi) Dokumen #${currentlyExamining.dokumenId} terlebih dahulu sebelum memanggil antrean berikutnya!',
+          ),
+          backgroundColor: AppColors.statusMenunggu,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
     final success = _repo.processNextQueue(dosenId);
     if (success) {
       final currentDoc = _repo.getCurrentlyExaminingDoc(dosenId);
@@ -199,17 +213,25 @@ class _DosenDashboardScreenState extends State<DosenDashboardScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      nextWaiting != null
-                          ? 'Antrean berikutnya yang berhak dipanggil: ${_repo.getUserById(nextWaiting.mahasiswaId)?.namaLengkap} (#${nextWaiting.dokumenId})'
-                          : 'Semua antrean bimbingan telah dipanggil / tidak ada antrean menunggu.',
+                      currentlyExamining != null
+                          ? 'Dokumen #${currentlyExamining.dokumenId} (${_repo.getUserById(currentlyExamining.mahasiswaId)?.namaLengkap}) sedang diperiksa. Dokumen ini wajib disetujui atau direvisi terlebih dahulu sebelum antrean berikutnya dibuka.'
+                          : (nextWaiting != null
+                              ? 'Antrean teratas yang siap diproses: ${_repo.getUserById(nextWaiting.mahasiswaId)?.namaLengkap} (#${nextWaiting.dokumenId})'
+                              : 'Semua antrean bimbingan telah dipanggil / tidak ada antrean menunggu.'),
                       style: const TextStyle(color: Colors.white, fontSize: 13),
                     ),
                     const SizedBox(height: 16),
                     CustomButton(
-                      text: 'Panggil Antrean Berikutnya (Next Queue)',
-                      icon: Icons.skip_next_rounded,
-                      type: ButtonType.secondary,
-                      onPressed: nextWaiting != null
+                      text: currentlyExamining != null
+                          ? 'Selesaikan Pemeriksaan Aktif Dahulu'
+                          : 'Panggil Antrean Berikutnya (Next Queue)',
+                      icon: currentlyExamining != null
+                          ? Icons.lock_clock_rounded
+                          : Icons.skip_next_rounded,
+                      type: currentlyExamining != null
+                          ? ButtonType.outline
+                          : ButtonType.secondary,
+                      onPressed: (currentlyExamining == null && nextWaiting != null)
                           ? () => _triggerNextQueue(user.userId)
                           : null,
                     ),
@@ -329,20 +351,35 @@ class _DosenDashboardScreenState extends State<DosenDashboardScreen> {
                   itemBuilder: (context, index) {
                     final doc = activeQueue[index];
                     final student = _repo.getUserById(doc.mahasiswaId);
+                    // Pengecekan FIFO: Cek apakah dokumen ini terkunci berdasarkan status indeks sebelumnya
+                    final isLocked = _repo.isQueueItemLocked(activeQueue, index);
 
                     return QueueCard(
                       document: doc,
                       studentOrDosen: student,
                       queuePosition: index + 1,
+                      isLocked: isLocked,
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => PemeriksaanDokumenScreen(
-                              dokumenId: doc.dokumenId,
+                        if (isLocked) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Antrean Terkunci (FIFO): Dokumen #${doc.dokumenId} (urutan ke-${index + 1}) belum bisa divalidasi. Selesaikan (setujui atau revisi) dokumen urutan sebelumnya (${activeQueue[index - 1].judulDokumen}) terlebih dahulu.',
+                              ),
+                              backgroundColor: const Color(0xFF334155),
+                              duration: const Duration(seconds: 3),
                             ),
-                          ),
-                        );
+                          );
+                        } else {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => PemeriksaanDokumenScreen(
+                                dokumenId: doc.dokumenId,
+                              ),
+                            ),
+                          );
+                        }
                       },
                     );
                   },
